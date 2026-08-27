@@ -90,7 +90,7 @@ async function api(req,res,u){
    const sid=u.searchParams.get('shopId')||u.searchParams.get('shop_id'); const token=u.searchParams.get('token')||u.searchParams.get('agentToken'); const jid=u.searchParams.get('jobId')||u.searchParams.get('job_id');
    const s=db.shops.find(q=>q.id===sid&&q.agent_token===token); const j=db.jobs.find(q=>q.id===jid&&q.shopId===sid);
    if(!s||!j)return json(res,404,{success:false,error:'Job not found'});
-   const filePath=j.file_url && j.file_url.startsWith('/files/') ? path.join(ROOT,j.file_url.replace(/^\/files\//,'')) : null;
+   const filePath=j.file_url && j.file_url.startsWith('/files/') ? path.join(UPLOAD_DIR,j.file_url.replace(/^\/files\//,'')) : null;
    if(!filePath || !filePath.startsWith(UPLOAD_DIR) || !fs.existsSync(filePath)) return json(res,404,{success:false,error:'File not found'});
    res.writeHead(200,{'Content-Type':mime(filePath),'Content-Disposition':'attachment; filename="'+path.basename(j.file_name||filePath)+'"','Cache-Control':'no-store'}); return fs.createReadStream(filePath).pipe(res);
  }
