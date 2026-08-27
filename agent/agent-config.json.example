@@ -1,0 +1,7 @@
+{
+  "ServerURL": "https://YOUR-RENDER-SERVICE.onrender.com",
+  "ShopID": "DEMO",
+  "AgentToken": "agent_demo",
+  "Printer": "",
+  "PollSeconds": 5
+}

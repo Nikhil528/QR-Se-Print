@@ -1,0 +1,29 @@
+{
+  "shops": [
+    {
+      "id": "DEMO",
+      "name": "QR Se Print Demo Shop",
+      "address": "",
+      "phone": "",
+      "email": "",
+      "passwordHash": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4",
+      "paused": false,
+      "supply_warning": false,
+      "subscription_expired": false,
+      "shop_payment_mode": "both",
+      "online_allowed": false,
+      "color_price": 5,
+      "bw_price": 3,
+      "agent_token": "agent_demo",
+      "agent_id": null,
+      "created_at": ""
+    }
+  ],
+  "jobs": [],
+  "tokens": {
+    "tok_f2a50396a89b743b": "DEMO",
+    "tok_ebaa7b5a2455986e": "DEMO"
+  },
+  "settings": {},
+  "events": []
+}
