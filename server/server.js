@@ -49,6 +49,12 @@ async function api(req,res,u){
  if(p==='/api/config' && req.method==='GET'){
    return json(res,200,{success:true,app:'QR Se Print',api_version:'complete-2026.08.26',apiBase:'/api',uploadMaxBytes:MAX_UPLOAD});
  }
+ if(p==='/api/agent/login'&&req.method==='POST'){
+   const x=await bodyJson(req); const sid=String(x.shopId||'').trim().toUpperCase(); const s=db.shops.find(q=>q.id.toUpperCase()===sid);
+   if(!s||s.passwordHash!==sha(String(x.password||''))) return json(res,401,{success:false,error:'Invalid Shop ID or Password'});
+   s.agent_token=id('agent'); s.agent_id=s.agent_id||id('agent'); s.agent_last_seen=new Date().toISOString(); save();
+   return json(res,200,{success:true,shopId:s.id,agentToken:s.agent_token,agentId:s.agent_id});
+ }
  if(p==='/api/shop/login'&&req.method==='POST'){const x=await bodyJson(req);const s=db.shops.find(q=>q.id.toUpperCase()===String(x.shopId||'').toUpperCase());if(!s||s.passwordHash!==sha(String(x.password||'')))return json(res,401,{success:false,error:'Invalid Shop ID or Password'});const t=id('tok');db.tokens[t]=s.id;save();return json(res,200,{success:true,token:t,shop:publicShop(s.id)});}
  if(p==='/api/demo/request'&&req.method==='POST'){
    const x=await bodyJson(req); let sid='DEMO'+Math.floor(Math.random()*9000+1000); while(db.shops.some(s=>s.id===sid)) sid='DEMO'+Math.floor(Math.random()*9000+1000);
@@ -88,11 +94,28 @@ async function api(req,res,u){
    if(!filePath || !filePath.startsWith(UPLOAD_DIR) || !fs.existsSync(filePath)) return json(res,404,{success:false,error:'File not found'});
    res.writeHead(200,{'Content-Type':mime(filePath),'Content-Disposition':'attachment; filename="'+path.basename(j.file_name||filePath)+'"','Cache-Control':'no-store'}); return fs.createReadStream(filePath).pipe(res);
  }
+ if(p==='/api/agent/heartbeat'&&req.method==='POST'){
+   const x=await bodyJson(req); const s=db.shops.find(q=>q.id===String(x.shopId||'').toUpperCase()&&q.agent_token===x.token);
+   if(!s)return json(res,401,{success:false,error:'Bad agent credentials'}); s.agent_id=String(x.agentId||s.agent_id||id('agent')); s.agent_last_seen=new Date().toISOString(); s.agent_version=String(x.version||''); save(); return json(res,200,{success:true,online:true});
+ }
+ if(p==='/api/agent/printers'&&req.method==='POST'){
+   const x=await bodyJson(req); const s=db.shops.find(q=>q.id===String(x.shopId||'').toUpperCase()&&q.agent_token===x.token);
+   if(!s)return json(res,401,{success:false,error:'Bad agent credentials'}); s.printers=Array.isArray(x.printers)?x.printers:[]; s.agent_last_seen=new Date().toISOString(); save(); return json(res,200,{success:true});
+ }
+ if(p==='/api/agent/version'&&req.method==='GET') return json(res,200,{success:true,version:'9.0.0',minimum_version:'9.0.0'});
  if(p==='/api/agent/status'&&req.method==='GET'){const s=auth(req);if(!s)return json(res,401,{success:false});const active=db.jobs.some(j=>j.shopId===s.id&&j.status==='printing');return json(res,200,{success:true,online:!!s.agent_id,printing:active});}
  if(p==='/api/agent/join'&&req.method==='POST'){const s=auth(req);if(!s)return json(res,401,{success:false});s.agent_id=id('agent');save();return json(res,200,{success:true,agentId:s.agent_id,agentToken:s.agent_token||'agent_demo'});}
  const poll=p.match(/^\/api\/agent\/poll$/);if(poll&&req.method==='GET'){const sid=u.searchParams.get('shopId');const token=u.searchParams.get('token');const s=db.shops.find(q=>q.id===sid&&q.agent_token===token);if(!s)return json(res,401,{success:false,error:'Bad agent credentials'});s.agent_id=s.agent_id||id('agent');const j=db.jobs.find(q=>q.shopId===sid&&q.status==='waiting'&&(['counter','paid'].includes(q.payment_status)));return json(res,200,{success:true,job:j||null});}
- if(p==='/api/agent/claim'&&req.method==='POST'){const x=await bodyJson(req);const s=db.shops.find(q=>q.id===x.shopId&&q.agent_token===x.token);const j=db.jobs.find(q=>q.id===x.jobId&&q.shopId===x.shopId);if(!s||!j)return json(res,401,{success:false,error:'Invalid claim'});if(j.status!=='waiting')return json(res,409,{success:false,error:'Job is not waiting'});j.status='printing';j.accepted_at=new Date().toISOString();save();return json(res,200,{success:true,fileUrl:j.file_url});}
- if(p==='/api/agent/complete'&&req.method==='POST'){const x=await bodyJson(req);const s=db.shops.find(q=>q.id===x.shopId&&q.agent_token===x.token);const j=db.jobs.find(q=>q.id===x.jobId&&q.shopId===x.shopId);if(!s||!j)return json(res,401,{success:false});j.status=x.success?'completed':'failed';j.completed_at=new Date().toISOString();j.error=x.error||null;save();return json(res,200,{success:true});}
+ if(p==='/api/agent/claim'&&req.method==='POST'){const x=await bodyJson(req);const s=db.shops.find(q=>q.id===x.shopId&&q.agent_token===x.token);const j=db.jobs.find(q=>q.id===x.jobId&&q.shopId===x.shopId);if(!s||!j)return json(res,401,{success:false,error:'Invalid claim'});if(j.status!=='waiting')return json(res,409,{success:false,error:'Job is not waiting'});j.status='printing';j.accepted_at=new Date().toISOString();save();return json(res,200,{success:true,fileUrl:'/api/agent/file?shopId='+encodeURIComponent(s.id)+'&token='+encodeURIComponent(s.agent_token)+'&jobId='+encodeURIComponent(j.id)});}
+ if(/^\/api\/jobs\/[^/]+\/downloaded$/.test(p)&&req.method==='POST'){
+   const x=await bodyJson(req); const s=db.shops.find(q=>q.id===String(x.shopId||'').toUpperCase()&&q.agent_token===x.token); const jid=p.split('/')[3]; const j=db.jobs.find(q=>q.id===jid&&q.shopId===x.shopId);
+   if(!s||!j)return json(res,401,{success:false,error:'Invalid agent/job'}); j.downloaded_at=new Date().toISOString(); save(); return json(res,200,{success:true});
+ }
+ if(p==='/api/agent/failed'&&req.method==='POST'){
+   const x=await bodyJson(req); const s=db.shops.find(q=>q.id===String(x.shopId||'').toUpperCase()&&q.agent_token===x.token); const j=db.jobs.find(q=>q.id===x.jobId&&q.shopId===x.shopId);
+   if(!s||!j)return json(res,401,{success:false,error:'Invalid agent/job'}); j.status='failed'; j.error=x.error||'Print failed'; j.completed_at=new Date().toISOString(); save(); return json(res,200,{success:true});
+ }
+ if(p==='/api/agent/complete'&&req.method==='POST'){const x=await bodyJson(req);const s=db.shops.find(q=>q.id===x.shopId&&q.agent_token===x.token);const j=db.jobs.find(q=>q.id===x.jobId&&q.shopId===x.shopId);if(!s||!j)return json(res,401,{success:false});j.status=x.success?'completed':'failed';j.completed_at=new Date().toISOString();j.error=x.error||null;save(); if(x.success){try{const fp=j.file_url&&j.file_url.startsWith('/files/')?path.join(UPLOAD_DIR,j.file_url.replace(/^\/files\//,'')):null;if(fp&&fp.startsWith(UPLOAD_DIR)&&fs.existsSync(fp))fs.unlinkSync(fp);}catch(e){}} return json(res,200,{success:true});}
  if(p==='/api/agent/reject'&&req.method==='POST'){const x=await bodyJson(req);const s=db.shops.find(q=>q.id===x.shopId&&q.agent_token===x.token);const j=db.jobs.find(q=>q.id===x.jobId&&q.shopId===x.shopId);if(!s||!j)return json(res,401,{success:false});j.status='rejected';j.error=x.error||'Rejected by operator';save();return json(res,200,{success:true});}
  if(p==='/api/admin/settings'&&(req.method==='POST'||req.method==='PUT')){
    const s=auth(req); if(!s)return json(res,401,{success:false,error:'Unauthorized'});
