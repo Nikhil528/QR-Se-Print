@@ -3999,33 +3999,27 @@ function downloadReadme(){
 }
 
 // ===== POSTER (QR embedded) =====
-function downloadPoster(){
-  const qrImg = document.getElementById('adminQrImg');
-  if (!qrImg || !qrImg.src) { alert('QR abhi load nahi hua, page refresh karo'); return; }
-  const poster = new Image();
-  poster.onload = function(){
-    const cv = document.createElement('canvas');
-    cv.width = poster.naturalWidth; cv.height = poster.naturalHeight;
-    const ctx = cv.getContext('2d');
-    ctx.drawImage(poster, 0, 0);
-    // Blank box (measured): left 31.45%, top 30.19%, w 37.42%, h 25.51%
-    const bx = cv.width*0.3145, by = cv.height*0.3019, bw = cv.width*0.3742, bh = cv.height*0.2551;
-    const side = Math.min(bw, bh) * 0.96;              // square QR, thoda padding
-    const qx = bx + (bw - side)/2, qy = by + (bh - side)/2;
-    ctx.fillStyle = '#fff'; ctx.fillRect(bx, by, bw, bh);
-    const qr = new Image();
-    qr.onload = function(){
-      ctx.imageSmoothingEnabled = false;               // QR crisp rahe
-      ctx.drawImage(qr, qx, qy, side, side);
-      const a = document.createElement('a');
-      a.href = cv.toDataURL('image/png');
-      a.download = 'QRSePrint-Poster.png';
-      a.click();
-    };
-    qr.src = qrImg.src;
-  };
-  poster.onerror = function(){ alert('poster.jpg nahi mila — GitHub public folder mein poster.jpg upload karo'); };
-  poster.src = '/poster.jpg';
+async function downloadPoster(){
+  if (!currentShop || !currentShop.id) { alert('Shop details load nahi hui'); return; }
+  const qrImg=document.getElementById('adminQrImg');
+  if(!qrImg || !qrImg.src){ alert('QR abhi load nahi hua, page refresh karo'); return; }
+  try{
+    if(!qrImg.complete) await new Promise((resolve,reject)=>{qrImg.onload=resolve;qrImg.onerror=reject;});
+    const W=2480,H=1754,cv=document.createElement('canvas'); cv.width=W;cv.height=H;const c=cv.getContext('2d');
+    c.fillStyle='#f7f5ff';c.fillRect(0,0,W,H);
+    c.fillStyle='#111827';c.fillRect(0,0,W,300);
+    c.fillStyle='#ffffff';c.font='900 112px Arial';c.fillText('QR Se Print',130,175);
+    c.font='700 46px Arial';c.fillText('SCAN • UPLOAD • PRINT',136,245);
+    c.fillStyle='#ffffff';c.roundRect(110,390,2260,1210,45);c.fill();
+    c.fillStyle='#111827';c.font='800 64px Arial';c.fillText(String(currentShop.name||'Your Shop'),180,520);
+    c.fillStyle='#6b7280';c.font='500 38px Arial';c.fillText('Apni file mobile se scan karke upload karein',180,590);
+    c.fillStyle='#7c3aed';c.font='800 34px Arial';c.fillText('QR SCAN KAREIN',820,720);
+    const side=820; c.fillStyle='#fff';c.fillRect(820,770,side,side);c.imageSmoothingEnabled=false;c.drawImage(qrImg,820,770,side,side);
+    c.fillStyle='#111827';c.font='800 38px Arial';c.fillText('Shop ID: '+String(currentShop.id),180,1480);
+    c.fillStyle='#4b5563';c.font='600 34px Arial';c.fillText('1. QR scan karein   2. Document upload karein   3. Print setting choose karein',180,1545);
+    c.fillStyle='#7c3aed';c.font='800 30px Arial';c.fillText('B&W & COLOR PRINT AVAILABLE',180,1610);
+    const a=document.createElement('a');a.href=cv.toDataURL('image/png');a.download=`QRSePrint-Poster-${currentShop.id}.png`;a.click();
+  }catch(e){alert('Poster generate nahi ho saka: '+e.message);}
 }
 
 async function loadStats(shopId) {
@@ -4163,15 +4157,14 @@ async function loadJobs() {
   } catch(e) {}
 }
 
-function downloadQrOnly() {
-  if (!currentShop || !currentShop.qr_code) {
-    alert('QR Code load nahi hua, page refresh karo');
-    return;
-  }
-  const a = document.createElement('a');
-  a.href = currentShop.qr_code;
-  a.download = `QR-Code-${currentShop.id}.png`;
-  a.click();
+async function downloadQrOnly() {
+  if (!currentShop || !currentShop.id) { alert('Shop details load nahi hui'); return; }
+  const img=document.getElementById('adminQrImg');
+  if(!img || !img.src){ alert('QR Code load nahi hua, page refresh karo'); return; }
+  try{ if(!img.complete) await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=reject;});
+    const side=1200,cv=document.createElement('canvas');cv.width=cv.height=side;const c=cv.getContext('2d');c.fillStyle='#fff';c.fillRect(0,0,side,side);c.imageSmoothingEnabled=false;c.drawImage(img,40,40,side-80,side-80);
+    const a=document.createElement('a');a.href=cv.toDataURL('image/png');a.download=`QR-Code-${currentShop.id}.png`;a.click();
+  }catch(e){alert('QR download nahi ho saka: '+e.message);}
 }
 
 function downloadEasyInstaller() {
