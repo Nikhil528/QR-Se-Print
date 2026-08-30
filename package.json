@@ -1,8 +1,13 @@
 {
-  "name":"qr-se-print-complete",
-  "version":"8.0.0",
-  "private":true,
-  "description":"QR Se Print unified frontend, API and Windows print-agent package",
-  "scripts":{"start":"node server/server.js","check":"node --check server/server.js"},
-  "engines":{"node":">=20"}
+  "name": "qr-se-print-complete",
+  "version": "10.0.0",
+  "private": true,
+  "description": "QR Se Print unified frontend, API and Windows print-agent package",
+  "scripts": {
+    "start": "node server/server.js",
+    "check": "node --check server/server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
 }
