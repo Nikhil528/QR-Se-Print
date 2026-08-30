@@ -147,6 +147,47 @@ async function api(req,res,u){
  if(p==='/api/shop/advance-module'&&req.method==='GET'){const s=auth(req);if(!s)return json(res,401,{success:false});return json(res,200,{success:true,active:['pro','premium'].includes(s.plan)});}
  if(p==='/api/admin/export-data'&&req.method==='POST'){if(!adminAuth(req))return json(res,401,{success:false,error:'Unauthorized'});return json(res,200,{success:true,data:db});}
  if(p==='/api/admin/delete-account'&&req.method==='POST'){const s=auth(req);if(!s)return json(res,401,{success:false,error:'Unauthorized'});db.jobs=db.jobs.filter(j=>j.shopId!==s.id);db.shops=db.shops.filter(q=>q.id!==s.id);for(const [t,v] of Object.entries(db.tokens||{}))if(v===s.id)delete db.tokens[t];save();return json(res,200,{success:true});}
+ // Compatibility/API routes used by the current web UI
+ if(p==='/api/i18n/dict'&&req.method==='GET'){
+   const lang=String(u.searchParams.get('lang')||'en').toLowerCase();
+   return json(res,200,{success:true,lang,dict:{}});
+ }
+ if(p==='/api/agent/version'&&req.method==='GET'){
+   return json(res,200,{success:true,version:process.env.AGENT_VERSION||'9.1.0',latest:process.env.AGENT_VERSION||'9.1.0',forceUpdate:false});
+ }
+ if(p==='/api/admin-broadcast'&&req.method==='GET'){
+   const sid=String(u.searchParams.get('shopId')||'').toUpperCase();
+   if(sid){const s=db.shops.find(q=>String(q.id).toUpperCase()===sid); if(!s)return json(res,404,{success:false,error:'Shop not found'});}
+   return json(res,200,{success:true,message:db.settings?.admin_broadcast||'',broadcast:db.settings?.admin_broadcast||''});
+ }
+ if(p==='/api/whitelabel/license-fee'&&req.method==='GET'){
+   return json(res,200,{success:true,amount:Number(process.env.WHITELABEL_LICENSE_FEE||0),currency:'INR'});
+ }
+ if(p==='/api/shop/insights'&&req.method==='GET'){
+   const s=auth(req); if(!s)return json(res,401,{success:false,error:'Unauthorized'});
+   const js=db.jobs.filter(j=>j.shopId===s.id);
+   return json(res,200,{success:true,totalJobs:js.length,completed:js.filter(j=>j.status==='completed').length,failed:js.filter(j=>j.status==='failed').length,pending:js.filter(j=>['waiting','printing'].includes(j.status)).length,revenue:js.filter(j=>j.payment_status==='paid'||j.payment_status==='counter').reduce((a,j)=>a+Number(j.amount||0),0)});
+ }
+ const st=p.match(/^\/api\/shop\/([^/]+)\/stats\/?$/);
+ if(st&&req.method==='GET'){
+   const requested=decodeURIComponent(st[1]).toUpperCase(); const s=auth(req);
+   if(!s || s.id.toUpperCase()!==requested)return json(res,403,{success:false,error:'Shop isolation violation'});
+   const js=db.jobs.filter(j=>j.shopId===s.id);
+   return json(res,200,{success:true,shopId:s.id,total:js.length,totalJobs:js.length,completed:js.filter(j=>j.status==='completed').length,failed:js.filter(j=>j.status==='failed').length,pending:js.filter(j=>['waiting','printing'].includes(j.status)).length,revenue:js.filter(j=>j.payment_status==='paid'||j.payment_status==='counter').reduce((a,j)=>a+Number(j.amount||0),0),prints:js.filter(j=>j.status==='completed').length});
+ }
+ if(p==='/api/admin/settings'&&req.method==='GET'){
+   const s=auth(req); if(!s)return json(res,401,{success:false,error:'Unauthorized'});
+   return json(res,200,{success:true,settings:publicShop(s.id)});
+ }
+ if(p==='/api/admin/settings'&&req.method==='PUT'){
+   // handled above; kept for clarity
+ }
+ if(p==='/api/qr'&&req.method==='GET'){
+   const sid=String(u.searchParams.get('shopId')||'').toUpperCase(); const s=db.shops.find(q=>String(q.id).toUpperCase()===sid);
+   if(!s)return json(res,404,{success:false,error:'Shop not found'});
+   const target=`${process.env.PUBLIC_BASE_URL||''}/print/${encodeURIComponent(s.id)}`;
+   return json(res,200,{success:true,shopId:s.id,url:target,qrCode:shopQrUrl(s.id)});
+ }
  return json(res,404,{error:'API route not implemented in local edition',path:p});
 }
 
