@@ -1,1 +1,61 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>QR Se Print - Register</title><script src="https://checkout.razorpay.com/v1/checkout.js"></script><style>body{font-family:Arial;background:#f5f6fa;margin:0}.wrap{max-width:650px;margin:35px auto;padding:20px}.card{background:#fff;padding:25px;border-radius:18px;box-shadow:0 8px 25px #0001}input{width:100%;box-sizing:border-box;padding:12px;margin:7px 0;border:1px solid #ddd;border-radius:10px}button{padding:13px;border:0;border-radius:10px;background:#111827;color:#fff;font-weight:700;cursor:pointer;width:100%;margin-top:10px}.price{font-size:36px;font-weight:900}.err{color:#b91c1c;margin-top:12px}.ok{color:#047857;font-weight:700}</style></head><body><div class="wrap"><div class="card"><h1>🏪 QR Se Print</h1><div id="selected"></div><input id="name" placeholder="Owner name"><input id="shopName" placeholder="Shop name"><input id="phone" maxlength="10" placeholder="Mobile number"><input id="email" type="email" placeholder="Email"><button id="payBtn" onclick="startPayment()">Pay & Create Shop</button><div id="msg"></div></div></div><script>const plan=(new URLSearchParams(location.search).get('plan')||'starter').toLowerCase(),prices={starter:599,pro:899,premium:999};document.getElementById('selected').innerHTML='<b>'+plan.toUpperCase()+'</b><div class="price">₹'+(prices[plan]||599)+'</div><p>Lifetime — pay once, no renewal ever</p>';async function startPayment(){const msg=document.getElementById('msg'),btn=document.getElementById('payBtn');msg.textContent='';btn.disabled=true;try{const p={plan,name:document.getElementById('name').value.trim(),shopName:document.getElementById('shopName').value.trim(),phone:document.getElementById('phone').value.trim(),email:document.getElementById('email').value.trim()};if(!p.name||!p.shopName||p.phone.length<10||!p.email)throw new Error('Please fill all details correctly');const r=await fetch('/api/register/create-order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)}),d=await r.json();if(!d.success)throw new Error(d.error||'Order create failed');const rz=new Razorpay({key:d.keyId,amount:d.amount,currency:'INR',name:'QR Se Print',description:plan.toUpperCase()+' Lifetime Plan',order_id:d.orderId,prefill:{name:p.name,email:p.email,contact:p.phone},handler:async function(resp){const v=await fetch('/api/register/verify-payment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({registrationId:d.registrationId,razorpay_order_id:resp.razorpay_order_id,razorpay_payment_id:resp.razorpay_payment_id,razorpay_signature:resp.razorpay_signature})}),vd=await v.json();if(!vd.success){msg.className='err';msg.textContent='❌ '+vd.error;btn.disabled=false;return}document.querySelector('.card').innerHTML='<h1>🎉 Registration Successful</h1><p class="ok">Payment verified. Shop activated.</p><p><b>Shop ID</b></p><div class="price">'+vd.shopId+'</div><p><b>Password</b></p><div class="price">'+vd.password+'</div><p>Plan: '+vd.plan.toUpperCase()+'</p><a href="/admin">Open Shop Login</a>'},modal:{ondismiss:function(){btn.disabled=false}}});rz.open()}catch(e){msg.className='err';msg.textContent='❌ '+e.message;btn.disabled=false}}</script></body></html>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>QR Se Print — Choose Your Plan</title><style>
+body{font-family:Arial,sans-serif;margin:0;background:#f7f7fb;color:#17151d}.wrap{max-width:1100px;margin:auto;padding:28px 16px}.hero{text-align:center}.hero h1{font-size:34px;margin:10px}.hero p{color:#666}.plans{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:28px 0}.card{background:#fff;border:1px solid #e5e7eb;border-radius:18px;padding:20px;box-shadow:0 8px 30px #0000000b}.card.best{border:2px solid #8b5cf6}.tag{display:inline-block;padding:5px 9px;border-radius:99px;background:#f3e8ff;color:#6d28d9;font-size:12px;font-weight:700}.price{font-size:34px;font-weight:800;margin:10px 0}.card ul{padding-left:20px;line-height:1.9;min-height:180px}.btn{display:block;width:100%;padding:12px;border:0;border-radius:10px;background:#111827;color:#fff;font-weight:700;cursor:pointer}.form{max-width:620px;margin:30px auto;background:#fff;padding:22px;border-radius:18px;box-shadow:0 8px 30px #0000000b}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}label{font-size:13px;font-weight:700}input{width:100%;box-sizing:border-box;padding:12px;margin-top:5px;border:1px solid #ddd;border-radius:9px}.result{display:none;margin-top:18px;padding:18px;background:#ecfdf5;border-radius:14px}.cred{font-size:20px;font-weight:800;background:#fff;padding:10px;border-radius:8px;margin:8px 0}.err{color:#b91c1c;margin-top:10px}@media(max-width:850px){.plans{grid-template-columns:1fr 1fr}}@media(max-width:560px){.plans,.grid{grid-template-columns:1fr}.hero h1{font-size:28px}}
+</style><script src="https://checkout.razorpay.com/v1/checkout.js"></script></head><body><div class="wrap"><div class="hero"><h1>Choose Your Plan</h1><p>QR Se Print — smart printing for cyber cafes & print shops</p></div><div class="plans">
+<div class="card"><span class="tag">🎯 Demo</span><div class="price">₹0</div><p>Try it out — without paying anything</p><ul><li>Demo Auto Print Software</li><li>Personalized QR For Shop</li><li>24 Hours · 10 Prints</li><li>Setup Guide included</li></ul><button class="btn" onclick="selectPlan('demo')">Try Now — Free Demo</button></div>
+<div class="card"><span class="tag">🚀 Starter</span><div class="price">₹599</div><p>Lifetime — pay once, no renewal ever</p><ul><li>Auto Print Software</li><li>Personalized QR For Shop</li><li>Unlimited Print</li><li>Help with Setup</li><li>WhatsApp Assistant</li></ul><button class="btn" onclick="selectPlan('starter')">Upgrade Your Shop</button></div>
+<div class="card"><span class="tag">💎 Pro</span><div class="price">₹899</div><p>Lifetime — Advance Feature unlocked</p><ul><li>Everything in Starter</li><li>Advance Feature — UNLOCKED</li><li>4×6 · Resume · A3 · Duplex · Mini Print</li><li>Payment Gateway Setup Assistant</li><li>Bug Fix Within 2Hr · AnyDesk Assistant</li></ul><button class="btn" onclick="selectPlan('pro')">Upgrade Your Shop</button></div>
+<div class="card best"><span class="tag">👑 BEST VALUE · Premium</span><div class="price">₹999</div><p>Lifetime — what exists today and whatever comes next</p><ul><li>Everything in Pro</li><li>Advance Feature — UNLOCKED</li><li>ALL upcoming advance features — FREE</li><li>Never pay again</li><li>Priority Support</li></ul><button class="btn" onclick="selectPlan('premium')">Upgrade Your Shop</button></div></div>
+<div class="form"><h2 id="formTitle">🎯 Start Demo</h2><div class="grid"><div><label>Name</label><input id="name"></div><div><label>Mobile</label><input id="mobile"></div><div><label>Shop Name</label><input id="shopName"></div><div><label>Email</label><input id="email" type="email"></div><div style="grid-column:1/-1"><label>Address</label><input id="address"></div></div><button class="btn" style="margin-top:14px" onclick="register()" id="go">Pay &amp; Create Account</button><div class="err" id="err"></div><div class="result" id="result"></div></div></div><script>
+let plan=new URLSearchParams(location.search).get('plan')||'demo';function selectPlan(p){plan=p;history.replaceState({},'',location.pathname+'?plan='+p);document.getElementById('formTitle').textContent=(p==='demo'?'🎯 Start Demo':'🚀 Register — '+p.toUpperCase());document.getElementById('go').textContent=(p==='demo'?'Create Account':'Pay & Create Account')}
+selectPlan(plan);
+async function register(){
+ const payload={plan,name:val('name'),mobile:val('mobile'),shopName:val('shopName'),email:val('email'),address:val('address')};
+ if(!payload.name||!payload.mobile||!payload.shopName||!payload.email){return err('Please fill all required fields')}
+ const btn=document.getElementById('go'); btn.disabled=true;
+ try{
+   if(plan==='demo'){
+     btn.textContent='Creating Demo...';
+     const r=await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+     const d=await r.json(); if(!r.ok||!d.success) throw Error(d.error||'Registration failed');
+     showCredentials(d);
+     return;
+   }
+   btn.textContent='Creating secure payment...';
+   const r=await fetch('/api/register/order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+   const d=await r.json(); if(!r.ok||!d.success) throw Error(d.error||'Payment order creation failed');
+   if(typeof Razorpay==='undefined') throw Error('Razorpay Checkout load nahi hua. Internet connection check karein.');
+   const options={
+     key:d.keyId, amount:d.amount, currency:d.currency||'INR',
+     name:'QR Se Print', description:(plan.toUpperCase()+' Plan'),
+     order_id:d.orderId,
+     prefill:{name:payload.name,email:payload.email,contact:payload.mobile},
+     notes:{registrationId:d.registrationId,plan},
+     theme:{color:'#111827'},
+     modal:{ondismiss:function(){btn.disabled=false;btn.textContent='Pay & Create Account';}},
+     handler:async function(resp){
+       try{
+         btn.textContent='Verifying payment...';
+         const vr=await fetch('/api/register/complete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+           registrationId:d.registrationId,razorpay_order_id:resp.razorpay_order_id,
+           razorpay_payment_id:resp.razorpay_payment_id,razorpay_signature:resp.razorpay_signature
+         })});
+         const vd=await vr.json();
+         if(!vr.ok||!vd.success) throw Error(vd.error||'Payment verification failed');
+         showCredentials(vd);
+       }catch(e){err('❌ '+e.message);btn.disabled=false;btn.textContent='Pay & Create Account';}
+     }
+   };
+   const rz=new Razorpay(options);
+   rz.on('payment.failed',function(resp){err('❌ Payment failed: '+(resp.error?.description||'Please try again'));btn.disabled=false;btn.textContent='Pay & Create Account';});
+   rz.open();
+ }catch(e){err('❌ '+e.message);btn.disabled=false;btn.textContent=plan==='demo'?'Create Account':'Pay & Create Account';}
+}
+function showCredentials(d){
+ const box=document.getElementById('result'); box.style.display='block';
+ box.innerHTML='<h3>✅ Account Created</h3><p><b>Plan:</b> '+esc(d.plan)+'</p>'
+ +'<div>Shop ID</div><div class="cred">'+esc(d.shopId)+'</div><div>Password</div><div class="cred">'+esc(d.password)+'</div>'
+ +(d.plan==='demo'?'<p>⏱️ Demo valid for 24 hours · 10 prints</p>':'<p>💳 Payment verified successfully · Lifetime plan active</p>')
+ +'<p><a href="/admin">🔑 Open Shop Login</a></p>';
+ box.scrollIntoView({behavior:'smooth'});
+}
+function val(id){return document.getElementById(id).value.trim()}function err(x){document.getElementById('err').textContent=x}function esc(x){return String(x).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}</script></body></html>

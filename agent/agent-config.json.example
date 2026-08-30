@@ -1,7 +1,13 @@
 {
-  "ServerURL": "https://YOUR-RENDER-SERVICE.onrender.com",
+  "ServerURL": "https://bvv-djql.onrender.com",
   "ShopID": "DEMO",
   "AgentToken": "agent_demo",
   "Printer": "",
-  "PollSeconds": 5
+  "PollSeconds": 5,
+  "PrinterBW": "HP LaserJet Pro MFP M126 plus series",
+  "PrinterColor": "EPSON L3210 Series",
+  "BWPrinter": "HP LaserJet Pro MFP M126 plus series",
+  "ColorPrinter": "EPSON L3210 Series",
+  "Version": "10.0.0",
+  "SumatraPath": "C:\\Program Files\\SumatraPDF\\SumatraPDF.exe"
 }

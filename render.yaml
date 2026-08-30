@@ -2,7 +2,7 @@ services:
   - type: web
     name: qr-se-print
     runtime: docker
-    plan: free
+    plan: starter
     dockerfilePath: ./Dockerfile
     healthCheckPath: /api/health
     envVars:
@@ -10,7 +10,13 @@ services:
         value: "10000"
       - key: MAX_UPLOAD_BYTES
         value: "26214400"
-      - key: PLATFORM_RAZORPAY_KEY_ID
+      - key: DATA_DIR
+        value: "/var/data"
+      - key: ADMIN_USER
         sync: false
-      - key: PLATFORM_RAZORPAY_KEY_SECRET
+      - key: ADMIN_PASSWORD
         sync: false
+    disk:
+      name: qr-se-print-data
+      mountPath: /var/data
+      sizeGB: 1
