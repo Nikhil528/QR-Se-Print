@@ -12,8 +12,8 @@
       "subscription_expired": false,
       "shop_payment_mode": "both",
       "online_allowed": false,
-      "color_price": 5,
-      "bw_price": 3,
+      "color_price": 30,
+      "bw_price": 10,
       "agent_token": "agent_demo",
       "agent_id": null,
       "created_at": ""
