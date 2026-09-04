@@ -2,10 +2,10 @@
   "shops": [
     {
       "id": "DEMO",
-      "name": "QR Se Print Demo Shop",
-      "address": "",
-      "phone": "",
-      "email": "",
+      "name": "Koshta Computers",
+      "address": "Ranital (Katav) Majholi",
+      "phone": "916261728996",
+      "email": "koshtacomputers@gmail.com",
       "passwordHash": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4",
       "paused": false,
       "supply_warning": false,
