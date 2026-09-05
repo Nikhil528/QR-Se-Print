@@ -24,7 +24,130 @@
     "tok_f2a50396a89b743b": "DEMO",
     "tok_ebaa7b5a2455986e": "DEMO"
   },
-  "settings": {},
+  "settings": {
+    "app": {
+      "name": "QR Se Print",
+      "apiVersion": "complete-2026.09.05",
+      "adminUserEnv": "ADMIN_USER",
+      "adminPasswordEnv": "ADMIN_PASSWORD"
+    },
+    "server": {
+      "port": 8080,
+      "maxUploadBytes": 26214400,
+      "requestBodyLimitBytes": 2097152
+    },
+    "health": {
+      "agentOnlineSeconds": 45
+    },
+    "uploads": {
+      "cleanupMinutes": 10,
+      "fileMaxAgeMinutes": 90
+    },
+    "demo": {
+      "enabled": true,
+      "instant": true,
+      "hours": 24,
+      "durationDays": 1,
+      "printLimit": 10,
+      "priceBW": 5,
+      "priceColor": 10
+    },
+    "defaults": {
+      "shop": {
+        "shopPaymentMode": "both",
+        "onlineAllowed": false,
+        "priceBW": 3,
+        "priceColor": 5,
+        "duplexBWEnabled": true,
+        "duplexColorEnabled": true,
+        "duplexMode": "same",
+        "priceBWDuplex": 6,
+        "priceColorDuplex": 10,
+        "price4x6_4": 10,
+        "price4x6_6": 15,
+        "price4x6_8": 20,
+        "price4x6_10": 25,
+        "priceResumeColor": 20,
+        "priceResumeBW": 10,
+        "priceA3BW": 10,
+        "priceA3Color": 20,
+        "priceA2BW": 20,
+        "priceA2Color": 40,
+        "priceA1BW": 40,
+        "priceA1Color": 80,
+        "printerModel": "",
+        "printerNameBW": "",
+        "printerNameColor": "",
+        "printerName4x6": "",
+        "printerNameA3": "",
+        "printerNameDuplex": ""
+      }
+    },
+    "plans": {
+      "demo": {
+        "name": "Demo",
+        "price": 0,
+        "durationDays": 1,
+        "printLimit": 10,
+        "advance": false
+      },
+      "starter": {
+        "name": "Starter",
+        "price": 599,
+        "durationDays": 0,
+        "printLimit": null,
+        "advance": false
+      },
+      "pro": {
+        "name": "Pro",
+        "price": 899,
+        "durationDays": 0,
+        "printLimit": null,
+        "advance": true
+      },
+      "premium": {
+        "name": "Premium",
+        "price": 999,
+        "durationDays": 0,
+        "printLimit": null,
+        "advance": true
+      }
+    },
+    "agent": {
+      "defaultServerURL": "https://bvv-djql.onrender.com",
+      "defaultShopID": "DEMO",
+      "pollSeconds": 5,
+      "version": "9.1.0",
+      "jobStatusPollSeconds": 5
+    },
+    "printers": {
+      "models": [
+        "Default Printer",
+        "Microsoft Print to PDF",
+        "HP LaserJet Pro MFP M126 plus series",
+        "EPSON L3210 Series"
+      ]
+    },
+    "features": {
+      "advance": [
+        "4x6 Photo",
+        "Resume",
+        "A3",
+        "Duplex",
+        "Mini Print"
+      ]
+    },
+    "payments": {
+      "setupFee": 0,
+      "currency": "INR",
+      "registrationGateway": "razorpay",
+      "shopGatewayFallback": "razorpay"
+    },
+    "security": {
+      "demoPasswordMinLength": 4,
+      "shopPasswordMinLength": 4
+    }
+  },
   "events": [],
   "adminTokens": {}
 }

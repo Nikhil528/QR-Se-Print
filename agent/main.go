@@ -48,7 +48,15 @@ type Job struct {
 }
 
 type APIJobResponse struct { Success bool `json:"success"`; Job *Job `json:"job"`; Jobs []Job `json:"jobs"`; Error string `json:"error"` }
-type LoginResponse struct { Success bool `json:"success"`; ShopID string `json:"shopId"`; AgentToken string `json:"agentToken"`; AgentID string `json:"agentId"`; Error string `json:"error"` }
+type LoginResponse struct {
+  Success bool `json:"success"`
+  ShopID string `json:"shopId"`
+  AgentToken string `json:"agentToken"`
+  AgentID string `json:"agentId"`
+  PollSeconds int `json:"pollSeconds"`
+  Version string `json:"version"`
+  Error string `json:"error"`
+}
 type ClaimResponse struct { Success bool `json:"success"`; FileURL string `json:"fileUrl"`; Error string `json:"error"` }
 
 type Printer struct { Name string `json:"name"`; Status string `json:"status,omitempty"` }
@@ -97,7 +105,7 @@ func doLogin(cfg Config) Config {
   client:=&http.Client{Timeout:30*time.Second}
   var lr LoginResponse
   if err:=postJSON(client,server,"/api/agent/login",map[string]any{"shopId":shop,"password":pass},&lr); err!=nil||!lr.Success { msg("QR Se Print","Login failed: "+firstErr(err,lr.Error),0x10); return cfg }
-  cfg.ServerURL=strings.TrimRight(server,"/"); cfg.ShopID=lr.ShopID; cfg.AgentToken=lr.AgentToken; cfg.AgentID=lr.AgentID; cfg.Version="9.1.0"
+  cfg.ServerURL=strings.TrimRight(server,"/"); cfg.ShopID=lr.ShopID; cfg.AgentToken=lr.AgentToken; if lr.PollSeconds>=1 { cfg.PollSeconds=lr.PollSeconds }; if lr.Version!="" { cfg.Version=lr.Version }; cfg.AgentID=lr.AgentID; cfg.Version="9.1.0"
   saveConfig(cfg)
   msg("QR Se Print","Login successful\n\nShop: "+cfg.ShopID+"\nAgent is ready for print jobs.",0x40)
   return cfg
