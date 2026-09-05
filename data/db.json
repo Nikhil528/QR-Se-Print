@@ -25,7 +25,8 @@
       "adv_resume_active": true,
       "adv_4x6_active": true,
       "adv_a3_active": true,
-      "adv_mini_active": true
+      "adv_mini_active": true,
+      "demo_prints_used": 0
     }
   ],
   "jobs": [],
@@ -109,7 +110,7 @@
       },
       "pro": {
         "name": "Pro",
-        "price": 899,
+        "price": 901,
         "durationDays": 0,
         "printLimit": null,
         "advance": true
@@ -150,7 +151,10 @@
       "setupFee": 0,
       "currency": "INR",
       "registrationGateway": "razorpay",
-      "shopGatewayFallback": "razorpay"
+      "shopGatewayFallback": "razorpay",
+      "registrationKeyIdEnv": "PLATFORM_RAZORPAY_KEY_ID",
+      "registrationKeySecretEnv": "PLATFORM_RAZORPAY_KEY_SECRET",
+      "shopKeysStoredPerShop": true
     },
     "security": {
       "demoPasswordMinLength": 4,
@@ -158,5 +162,10 @@
     }
   },
   "events": [],
-  "adminTokens": {}
+  "adminTokens": {
+    "adm_93bed9cc166350f1": "admin",
+    "adm_d815a2453a81c21e": "admin",
+    "adm_840fd27906f031f6": "admin"
+  },
+  "pendingRegistrations": {}
 }

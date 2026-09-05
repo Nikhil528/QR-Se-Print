@@ -324,6 +324,8 @@ const server=http.createServer(async(req,res)=>{try{
  if(u.pathname==='/register')return routePage(res,'register.html');
  if(u.pathname==='/superadmin')return routePage(res,'admin.html');
  if(u.pathname==='/qr-downloads')return routePage(res,'qr-downloads.html');
+ if(u.pathname.startsWith('/resume/'))return routePage(res,'resume.html');
+ if(u.pathname==='/resume')return routePage(res,'resume.html');
  const fp=path.join(WEB,path.normalize(u.pathname).replace(/^[/\\]+/,''));if(fp.startsWith(WEB)&&fs.existsSync(fp)&&fs.statSync(fp).isFile()){res.writeHead(200,{'Content-Type':mime(fp)});return fs.createReadStream(fp).pipe(res);}text(res,404,'Not found');
 }catch(e){console.error(e);json(res,500,{error:'Internal server error',message:e.message});}});
 function mime(f){const e=path.extname(f).toLowerCase();return ({'.html':'text/html; charset=utf-8','.js':'application/javascript; charset=utf-8','.css':'text/css','.json':'application/json','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.svg':'image/svg+xml','.webmanifest':'application/manifest+json','.pdf':'application/pdf'})[e]||'application/octet-stream';}
