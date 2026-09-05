@@ -2659,6 +2659,14 @@ async function loadAdminPanel() {
     loadAdvancedFee();
     shopPaused = !!shop.paused; shopSupply = shop.supply_warning || '';
     renderStatusUI();
+    // Super Admin se Shop Panel khola gaya ho to requested feature par seedha jao.
+    try {
+      const _qf = new URLSearchParams(location.search).get('feature');
+      if (_qf) {
+        const _btn = document.querySelector('[data-nav="' + CSS.escape(_qf) + '"]');
+        if (_btn) navTo(_qf, _btn);
+      }
+    } catch(_e) {}
   } catch(e) {
     console.error(e);
   }
@@ -4005,23 +4013,98 @@ async function downloadPoster(){
   if(!qrImg || !qrImg.src){ alert('QR abhi load nahi hua, page refresh karo'); return; }
   try{
     if(!qrImg.complete) await new Promise((resolve,reject)=>{qrImg.onload=resolve;qrImg.onerror=reject;});
-    const W=2480,H=1754,cv=document.createElement('canvas'); cv.width=W;cv.height=H;const c=cv.getContext('2d');
-    c.fillStyle='#f7f5ff';c.fillRect(0,0,W,H);
-    c.fillStyle='#111827';c.fillRect(0,0,W,300);
-    c.fillStyle='#ffffff';c.font='900 112px Arial';c.fillText('QR Se Print',130,175);
-    c.font='700 46px Arial';c.fillText('SCAN • UPLOAD • PRINT',136,245);
-    c.fillStyle='#ffffff';c.roundRect(110,390,2260,1210,45);c.fill();
-    c.fillStyle='#111827';c.font='800 64px Arial';c.fillText(String(currentShop.name||'Your Shop'),180,520);
-    c.fillStyle='#6b7280';c.font='500 38px Arial';c.fillText('Apni file mobile se scan karke upload karein',180,590);
-    c.fillStyle='#7c3aed';c.font='800 34px Arial';c.fillText('QR SCAN KAREIN',820,720);
-    const side=820; c.fillStyle='#fff';c.fillRect(820,770,side,side);c.imageSmoothingEnabled=false;c.drawImage(qrImg,820,770,side,side);
-    c.fillStyle='#111827';c.font='800 38px Arial';c.fillText('Shop ID: '+String(currentShop.id),180,1480);
-    c.fillStyle='#4b5563';c.font='600 34px Arial';c.fillText('1. QR scan karein   2. Document upload karein   3. Print setting choose karein',180,1545);
-    c.fillStyle='#7c3aed';c.font='800 30px Arial';c.fillText('B&W & COLOR PRINT AVAILABLE',180,1610);
-    const a=document.createElement('a');a.href=cv.toDataURL('image/png');a.download=`QRSePrint-Poster-${currentShop.id}.png`;a.click();
+
+    // A4 portrait @ 300 DPI — reference poster jaisa vertical layout
+    const W=2480,H=3508,cv=document.createElement('canvas');
+    cv.width=W;cv.height=H;
+    const c=cv.getContext('2d');
+    c.imageSmoothingEnabled=true;
+
+    // Background + outer border
+    c.fillStyle='#ffffff'; c.fillRect(0,0,W,H);
+    c.strokeStyle='#102c70'; c.lineWidth=24; c.strokeRect(28,28,W-56,H-56);
+
+    // Header
+    c.fillStyle='#ffffff'; c.fillRect(45,45,W-90,720);
+    c.fillStyle='#0b1638'; c.font='900 245px Arial'; c.fillText('QR',185,315);
+    c.fillStyle='#111111'; c.font='900 165px Arial'; c.fillText('Se',780,315);
+    c.fillStyle='#1554d1'; c.font='900 245px Arial'; c.fillText('Print',1030,315);
+
+    // Printer icon (simple, clean)
+    c.fillStyle='#102c70'; c.fillRect(1740,135,390,215);
+    c.fillStyle='#ffffff'; c.fillRect(1805,55,255,115);
+    c.strokeStyle='#102c70'; c.lineWidth=28; c.strokeRect(1805,55,255,115);
+    c.fillStyle='#ffffff'; c.fillRect(1820,230,225,70);
+    c.fillStyle='#102c70'; c.fillRect(1860,395,185,28);
+
+    // Scan / upload / print strip
+    c.fillStyle='#123b9b'; c.fillRect(115,570,W-230,210);
+    c.fillStyle='#ffffff'; c.font='900 96px Arial';
+    c.fillText('SCAN',315,705); c.fillText('•',820,705); c.fillText('UPLOAD',930,705);
+    c.fillText('•',1540,705); c.fillText('PAY',1650,705); c.fillText('•',1950,705); c.fillText('PRINT',2050,705);
+
+    // Step cards
+    function roundRect(x,y,w,h,r,fill,stroke){
+      c.beginPath(); c.roundRect(x,y,w,h,r);
+      if(fill){c.fillStyle=fill;c.fill();}
+      if(stroke){c.strokeStyle=stroke;c.lineWidth=8;c.stroke();}
+    }
+
+    // Left scan card
+    roundRect(120,930,470,620,35,'#ffffff','#123b9b');
+    c.fillStyle='#123b9b'; c.beginPath(); c.arc(355,1085,105,0,Math.PI*2); c.fill();
+    c.fillStyle='#ffffff'; c.font='900 70px Arial'; c.fillText('1. SCAN',225,1325);
+    c.fillStyle='#111111'; c.font='700 43px Arial'; c.fillText('QR Code',250,1395); c.fillText('Scan karein',225,1460);
+
+    // Right print card
+    roundRect(1890,930,470,620,35,'#ffffff','#123b9b');
+    c.fillStyle='#123b9b'; c.beginPath(); c.arc(2125,1085,105,0,Math.PI*2); c.fill();
+    c.fillStyle='#ffffff'; c.font='900 70px Arial'; c.fillText('3. PRINT',1985,1325);
+    c.fillStyle='#111111'; c.font='700 43px Arial'; c.fillText('Automatic',1990,1395); c.fillText('Print hoga',2015,1460);
+
+    // Center QR card
+    roundRect(650,875,1180,1250,48,'#ffffff','#102c70');
+    c.fillStyle='#102c70'; c.font='900 66px Arial'; c.fillText('QR SCAN KAREIN',915,1015);
+    const side=900;
+    c.fillStyle='#ffffff'; c.fillRect(790,1090,side,side);
+    c.imageSmoothingEnabled=false; c.drawImage(qrImg,790,1090,side,side); c.imageSmoothingEnabled=true;
+
+    // Arrow from scan to QR and QR to print
+    c.fillStyle='#1554d1'; c.beginPath(); c.moveTo(600,1180); c.lineTo(680,1180); c.lineTo(680,1140); c.lineTo(735,1235); c.lineTo(680,1330); c.lineTo(680,1290); c.lineTo(600,1290); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(1835,1180); c.lineTo(1915,1180); c.lineTo(1915,1140); c.lineTo(1970,1235); c.lineTo(1915,1330); c.lineTo(1915,1290); c.lineTo(1835,1290); c.closePath(); c.fill();
+
+    // Upload & Pay card
+    roundRect(625,2200,1230,390,38,'#ffffff','#123b9b');
+    c.fillStyle='#123b9b'; c.beginPath(); c.arc(800,2395,105,0,Math.PI*2); c.fill();
+    c.fillStyle='#ffffff'; c.font='900 120px Arial'; c.fillText('↑',765,2435);
+    c.fillStyle='#123b9b'; c.font='900 70px Arial'; c.fillText('2. UPLOAD & PAY',980,2390);
+    c.fillStyle='#111111'; c.font='700 43px Arial'; c.fillText('Apni File Upload karein',990,2470); c.fillText('aur Payment karein',990,2530);
+
+    // Automatic print banner
+    c.fillStyle='#ffd21a'; c.fillRect(255,2740,W-510,260);
+    c.fillStyle='#102c70'; c.font='900 125px Arial'; c.fillText('🖨  AUTOMATIC PRINT',610,2910);
+
+    // Shop name + payment line
+    c.fillStyle='#111111'; c.font='900 70px Arial';
+    const shopName=String(currentShop.name||'Your Shop');
+    c.textAlign='center'; c.fillText(shopName,W/2,3140);
+    c.font='700 48px Arial';
+    const pm=String(currentShop.payment_mode||currentShop.shop_payment_mode||'both').toLowerCase();
+    const payText=pm==='cash'?'Pay Cash Available':pm==='online'?'Pay Online Available':'Pay Online Or Pay Cash Option Available';
+    c.fillText(payText,W/2,3225);
+    c.textAlign='left';
+
+    // Footer
+    c.fillStyle='#0b286c'; c.fillRect(45,3300,W-90,163);
+    c.fillStyle='#ffd21a'; c.font='900 52px Arial'; c.fillText('📍',360,3405);
+    c.fillStyle='#ffffff'; c.font='900 55px Arial'; c.fillText('AVAILABLE ONLY AT',500,3405);
+    c.font='700 31px Arial'; c.fillText('QR Se Print • Scan • Upload • Pay • Print',760,3455);
+
+    const a=document.createElement('a');
+    a.href=cv.toDataURL('image/png',1.0);
+    a.download=`QRSePrint-Poster-${currentShop.id}.png`;a.click();
   }catch(e){alert('Poster generate nahi ho saka: '+e.message);}
 }
-
 async function loadStats(shopId) {
   try {
     // Ab login zaroori hai — ye endpoint pehle bina token ke khula tha,
