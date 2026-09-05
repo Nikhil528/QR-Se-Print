@@ -36,14 +36,14 @@
     "tok_2505903849be56df": "DEMO",
     "tok_274ad63576aea19f": "DEMO",
     "tok_dd3dd02f5a917539": "DEMO",
-    "tok_3f6ce156b2ec3983": "DEMO"
+    "tok_ebc870e3450a0cfd": "DEMO"
   },
   "settings": {
     "app": {
       "name": "QR Se Print",
       "apiVersion": "complete-2026.09.05",
-      "adminUserEnv": "ADMIN",
-      "adminPasswordEnv": "Admin@12345"
+      "adminUserEnv": "ADMIN_USER",
+      "adminPasswordEnv": "ADMIN_PASSWORD"
     },
     "server": {
       "port": 8080,
@@ -174,7 +174,8 @@
     "adm_7078fc762083ca3a": "admin",
     "adm_0fece80208b1106a": "admin",
     "adm_cec8a22f0bcdf897": "admin",
-    "adm_bb35140023609fc1": "admin"
+    "adm_bb35140023609fc1": "admin",
+    "adm_5d5ae0a540629036": "admin"
   },
   "pendingRegistrations": {}
 }
