@@ -42,8 +42,8 @@
     "app": {
       "name": "QR Se Print",
       "apiVersion": "complete-2026.09.05",
-      "adminUserEnv": "ADMIN_USER",
-      "adminPasswordEnv": "ADMIN_PASSWORD"
+      "adminUserEnv": "ADMIN",
+      "adminPasswordEnv": "Admin@12345"
     },
     "server": {
       "port": 8080,
