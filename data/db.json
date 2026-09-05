@@ -33,7 +33,8 @@
   "tokens": {
     "tok_f2a50396a89b743b": "DEMO",
     "tok_ebaa7b5a2455986e": "DEMO",
-    "tok_2505903849be56df": "DEMO"
+    "tok_2505903849be56df": "DEMO",
+    "tok_274ad63576aea19f": "DEMO"
   },
   "settings": {
     "app": {
@@ -170,7 +171,8 @@
     "adm_2967c0a59fe9af1d": "admin",
     "adm_7078fc762083ca3a": "admin",
     "adm_0fece80208b1106a": "admin",
-    "adm_cec8a22f0bcdf897": "admin"
+    "adm_cec8a22f0bcdf897": "admin",
+    "adm_bb35140023609fc1": "admin"
   },
   "pendingRegistrations": {}
 }
