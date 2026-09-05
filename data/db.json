@@ -16,7 +16,16 @@
       "bw_price": 10,
       "agent_token": "agent_demo",
       "agent_id": null,
-      "created_at": ""
+      "created_at": "",
+      "plan": "demo",
+      "plan_status": "active",
+      "advanced_unlocked": true,
+      "advanced_active": true,
+      "adv_legal_active": true,
+      "adv_resume_active": true,
+      "adv_4x6_active": true,
+      "adv_a3_active": true,
+      "adv_mini_active": true
     }
   ],
   "jobs": [],
