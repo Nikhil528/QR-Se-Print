@@ -156,6 +156,9 @@ func main() {
 	startLocalUI(&cfg, client)
 	ensureAutoStart()
 	launchTray()
+	// Open the local dashboard automatically after the agent starts.
+	// The tray icon remains available for reopening it later.
+	go openLocalDashboard()
 	heartbeat(client, cfg)
 	reportPrinters(client, cfg)
 	ticker := time.NewTicker(time.Duration(cfg.PollSeconds) * time.Second)
@@ -673,6 +676,21 @@ func startLocalUI(cfg *Config, client *http.Client) {
 		_, _ = w.Write([]byte(`{"ok":true}`))
 	})
 	go func() { _ = http.ListenAndServe("127.0.0.1:17845", mux) }()
+}
+
+func openLocalDashboard() {
+	// Give the local HTTP listener a moment to bind, then open the dashboard.
+	for i := 0; i < 10; i++ {
+		resp, err := http.Get("http://127.0.0.1:17845/")
+		if err == nil {
+			_ = resp.Body.Close()
+			_ = exec.Command("rundll32.exe", "url.dll,FileProtocolHandler", "http://127.0.0.1:17845/").Start()
+			logLine("Dashboard opened automatically")
+			return
+		}
+		time.Sleep(300 * time.Millisecond)
+	}
+	logLine("WARN: Dashboard could not be opened automatically; use tray Settings")
 }
 
 func ensureAutoStart() {
