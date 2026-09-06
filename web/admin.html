@@ -20,9 +20,13 @@
 <body>
 <div id="loginWrap" class="login-wrap"><div class="login-card">
   <div class="brand">🖨️ QR Se <b>Print</b></div>
-  <h2 style="margin:0 0 5px;font-family:'Plus Jakarta Sans'">Shop Login</h2><div class="muted">Shop ID aur Password se login karke apna Shop Dashboard open karein.</div>
-  <div id="shopLoginBox"><div class="field"><label>Shop ID</label><input id="shopId" placeholder="SHOP_XXXXXXXX" autocomplete="username" style="text-transform:uppercase"></div><div class="field"><label>Password</label><input id="shopPw" type="password" placeholder="••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')shopLogin()"></div><button id="shopLoginBtn" class="primary" onclick="shopLogin()">Shop Login</button><p class="hint">Login ke baad normal Shop Dashboard open hoga.</p></div>
-  <div id="adminLoginBox" class="hidden"><div class="field"><label>Admin Username</label><input id="adminUser" value="admin" autocomplete="username"></div><div class="field"><label>Admin Password</label><input id="adminPw" type="password" placeholder="••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')adminLogin()"></div><button class="primary" onclick="adminLogin()">Admin Login</button></div>
+  <h2 style="margin:0 0 5px;font-family:'Plus Jakarta Sans'">Admin Login</h2>
+  <div class="muted">Admin username aur password se Admin Panel open karein.</div>
+  <div id="adminLoginBox">
+    <div class="field"><label>Username</label><input id="adminUser" value="admin" autocomplete="username"></div>
+    <div class="field"><label>Password</label><input id="adminPw" type="password" placeholder="••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')adminLogin()"></div>
+    <button id="adminLoginBtn" class="primary" onclick="adminLogin()">Login</button>
+  </div>
   <div id="loginErr" class="error"></div>
 </div></div>
 
@@ -67,11 +71,25 @@
 <div id="modal" class="modal"><div class="modal-box"><div style="display:flex;justify-content:space-between;align-items:center"><h2 id="mtitle" style="font-family:'Plus Jakarta Sans';margin:0">Shop</h2><button class="btn secondary" onclick="closeModal()">✕</button></div><div class="formgrid" style="margin-top:18px"><div class="field"><label>Shop ID</label><input id="f_id"></div><div class="field"><label>Name</label><input id="f_name"></div><div class="field"><label>Phone</label><input id="f_phone"></div><div class="field"><label>Email</label><input id="f_email"></div><div class="field"><label>Plan</label><select id="f_plan"><option>demo</option><option>starter</option><option>pro</option><option>premium</option></select></div><div class="field"><label>Status</label><select id="f_status"><option value="active">Active</option><option value="expired">Expired</option></select></div><div class="field"><label>B&W Price</label><input id="f_bw" type="number"></div><div class="field"><label>Color Price</label><input id="f_color" type="number"></div><div class="field"><label>Payment Mode</label><select id="f_pm"><option>both</option><option>online_only</option><option>counter_only</option></select></div><div class="field"><label>Razorpay Key ID</label><input id="f_rkey"></div><div class="field"><label>Razorpay Secret</label><input id="f_rsecret" type="password" placeholder="blank = keep"></div><div class="field"><label>New Password</label><input id="f_pw" type="password" placeholder="blank = keep"></div></div><div class="actions" style="margin-top:16px"><button class="btn ok" onclick="saveShop()">💾 Save</button><button class="btn secondary" onclick="rotateAgent()">🤖 Rotate Agent</button><button class="btn danger" onclick="deleteShop()">🗑 Delete</button></div></div></div>
 <div id="toast" class="toast"></div>
 <script>
-let adminToken=localStorage.getItem('qsp_superadmin')||'',shops=[],editMode=false,role='shop';
+let adminToken=localStorage.getItem('qsp_superadmin')||'',shops=[],editMode=false;
 const $=id=>document.getElementById(id);const esc=x=>String(x??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-function setRole(r){role=r;$('shopLoginBox').classList.toggle('hidden',r!=='shop');$('adminLoginBox').classList.toggle('hidden',r!=='admin');$('loginErr').textContent=''}
-async function shopLogin(){const shopId=$('shopId').value.trim().toUpperCase(),password=$('shopPw').value;if(!shopId||!password)return err('Shop ID / Admin Username aur Password dono daalo');const btn=$('shopLoginBtn');btn.disabled=true;btn.textContent='⏳ Login ho raha hai...';try{let r=await fetch('/api/shop/login',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({shopId,password})});let d=await r.json().catch(()=>({}));if(r.ok&&d.success){localStorage.removeItem('qsp_superadmin');localStorage.setItem('qrprint_token',d.token);location.replace('/dashboard');return}r=await fetch('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({username:shopId,password})});d=await r.json().catch(()=>({}));if(r.ok&&d.success){localStorage.setItem('qsp_superadmin',d.token);localStorage.removeItem('qrprint_token');showApp();return}err(d.error||'Invalid Shop ID / Admin Username or Password')}catch(e){err('Network error — server/API check karo')}finally{btn.disabled=false;btn.textContent='Shop Login'}}
-async function adminLogin(){const username=$('adminUser').value.trim(),password=$('adminPw').value;if(!username||!password)return err('Username aur Password dono daalo');try{const r=await fetch('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({username,password})});const d=await r.json().catch(()=>({}));if(!r.ok||!d.success)return err(d.error||('Login failed ('+r.status+')'));adminToken=d.token;localStorage.setItem('qsp_superadmin',adminToken);showApp()}catch(e){err('Network error — server/API check karo')}}
+async function adminLogin(){
+ const username=$('adminUser').value.trim();
+ const password=$('adminPw').value;
+ const btn=$('adminLoginBtn');
+ if(!username||!password)return err('Username aur Password dono daalo');
+ btn.disabled=true;btn.textContent='⏳ Login ho raha hai...';
+ try{
+   const r=await fetch('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({username,password})});
+   const d=await r.json().catch(()=>({}));
+   if(!r.ok||!d.success)throw new Error(d.error||('Login failed ('+r.status+')'));
+   adminToken=d.token;
+   localStorage.setItem('qsp_superadmin',adminToken);
+   localStorage.removeItem('qrprint_token');
+   showApp();
+ }catch(e){err(e.message||'Network error — server/API check karo')}
+ finally{btn.disabled=false;btn.textContent='Login'}
+}
 function err(m){$('loginErr').textContent='❌ '+m}
 function logout(){localStorage.removeItem('qsp_superadmin');location.reload()}
 function showApp(){$('loginWrap').classList.add('hidden');$('app').style.display='block';nav('overview',document.querySelector('[data-nav=overview]'));refreshAll()}
@@ -95,9 +113,9 @@ async function loadJobs(){try{const q=new URLSearchParams();if($('jobShop').valu
 async function loadPlans(){const d=await api('/api/admin/settings');const p=d.plans;$('planForm').innerHTML=Object.entries(p).map(([id,x])=>`<div class="card" style="margin:0"><h3 style="margin:0 0 12px;font-family:'Plus Jakarta Sans'">${esc(id)}</h3><div class="field"><label>Name</label><input data-p="${id}" data-k="name" value="${esc(x.name)}"></div><div class="field"><label>Price</label><input type="number" data-p="${id}" data-k="price" value="${Number(x.price||0)}"></div><div class="field"><label>Duration days</label><input type="number" data-p="${id}" data-k="durationDays" value="${Number(x.durationDays||0)}"></div><div class="field"><label>Print limit</label><input data-p="${id}" data-k="printLimit" value="${x.printLimit===null?'':x.printLimit}"></div><label style="font-size:12px;font-weight:700"><input type="checkbox" data-p="${id}" data-k="advance" ${x.advance?'checked':''}> Advanced features</label></div>`).join('')}
 async function savePlans(){try{const els=[...document.querySelectorAll('[data-p]')],ids=[...new Set(els.map(e=>e.dataset.p))];for(const id of ids){const o={id};els.filter(e=>e.dataset.p===id).forEach(e=>o[e.dataset.k]=e.type==='checkbox'?e.checked:(e.dataset.k==='price'||e.dataset.k==='durationDays'||e.dataset.k==='printLimit'?(e.value===''?null:Number(e.value)):e.value));await api('/api/admin/plans',{method:'POST',body:JSON.stringify(o)})}await loadPlans();toast('Plans saved successfully')}catch(e){toast(e.message)}}
 async function loadSettings(){try{const d=await api('/api/admin/settings');$('settingsJson').value=JSON.stringify(d.settings,null,2)}catch(e){toast(e.message)}}async function saveSettings(){try{const x=JSON.parse($('settingsJson').value);await api('/api/admin/settings',{method:'PUT',body:JSON.stringify({settings:x})});toast('Settings saved')}catch(e){toast(e.message)}}async function broadcast(){try{const ids=$('bcShops').value.split(',').map(x=>x.trim()).filter(Boolean);const d=await api('/api/admin/broadcast',{method:'POST',body:JSON.stringify({shopIds:ids,message:$('bcMsg').value})});toast('Notice sent to '+d.updated+' shops')}catch(e){toast(e.message)}}async function loadAudit(){try{const d=await api('/api/admin/events?limit=500');$('auditRows').innerHTML=d.events.map(e=>`<tr><td>${esc(e.at)}</td><td>${esc(e.type)}</td><td>${esc(e.shopId||'')}</td><td>${esc(e.jobId||'')}</td><td>${esc(e.by||'')}</td><td>${esc(JSON.stringify(e))}</td></tr>`).join('')||'<tr><td colspan="6">No audit events.</td></tr>'}catch(e){toast(e.message)}}
-async function openFeature(feature){const sid=$('selectedShop')?.value;if(!sid)return toast('Pehle Shop Panel me shop select karo');try{const r=await api('/api/admin/impersonate',{method:'POST',body:JSON.stringify({shopId:sid})});localStorage.setItem('qrprint_token',r.token);location.href='/dashboard?superadmin=1&feature='+encodeURIComponent(feature)}catch(e){toast(e.message)}}
+async function openFeature(feature){const sid=$('selectedShop')?.value;if(!sid)return toast('Pehle Shop Panel me shop select karo');try{const r=await api('/api/admin/impersonate',{method:'POST',body:JSON.stringify({shopId:sid})});localStorage.setItem('qrprint_token',r.token);location.href='/dashboard?feature='+encodeURIComponent(feature)}catch(e){toast(e.message)}}
 function openResume(){const sid=$('selectedShop')?.value;if(!sid)return toast('Pehle Shop Panel me shop select karo');location.href='/resume/'+encodeURIComponent(sid)}
 function toast(m){const t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(window._tt);window._tt=setTimeout(()=>t.style.display='none',2600)}
-(async function boot(){try{const isAdminMode=new URLSearchParams(location.search).get('superadmin')==='1';if(isAdminMode){setRole('admin');return}localStorage.removeItem('qsp_superadmin');setRole('shop')}catch(e){setRole('shop')}})();
+(async function boot(){if(!adminToken){$('loginWrap').classList.remove('hidden');$('app').style.display='none';return;}try{await api('/api/admin/me');showApp();}catch(e){localStorage.removeItem('qsp_superadmin');adminToken='';$('loginWrap').classList.remove('hidden');$('app').style.display='none';}})();
 </script>
 </body></html>
