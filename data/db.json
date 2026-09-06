@@ -26,7 +26,9 @@
       "adv_4x6_active": true,
       "adv_a3_active": true,
       "adv_mini_active": true,
-      "demo_prints_used": 0
+      "demo_prints_used": 0,
+      "demo_expires_at": "2026-09-07T08:37:42.573Z",
+      "demo_print_limit": 10
     }
   ],
   "jobs": [],
@@ -179,7 +181,8 @@
     "adm_bb35140023609fc1": "admin",
     "adm_5d5ae0a540629036": "admin",
     "adm_8fe39e6800cfb3a0": "admin",
-    "adm_f94c6dad04f92125": "admin"
+    "adm_f94c6dad04f92125": "admin",
+    "adm_11eba9f102a7a125": "admin"
   },
   "pendingRegistrations": {}
 }
