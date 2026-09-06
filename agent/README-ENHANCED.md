@@ -16,3 +16,7 @@ Server: https://bvv-djql.onrender.com
 
 ## Build
 Run `build-windows.bat` on Windows with Go 1.23+ installed. It creates `QRSePrintAgent.exe`.
+
+
+## v10.1 Login fix
+The EXE now embeds login.ps1 and tray.ps1 and extracts them automatically, so running the EXE by itself no longer depends on those files being beside it. Default server: https://bvv-djql.onrender.com

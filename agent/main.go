@@ -80,6 +80,14 @@ var user32 = syscall.NewLazyDLL("user32.dll")
 //go:embed ui.html
 var uiHTML []byte
 
+// Embed helper scripts so the EXE works even when it is copied/run by itself.
+// The scripts are extracted beside agent-config.json on first launch.
+//go:embed login.ps1
+var loginPS1 []byte
+
+//go:embed tray.ps1
+var trayPS1 []byte
+
 var stateMu sync.RWMutex
 var runtimeState = struct {
 	connected       bool
@@ -177,7 +185,17 @@ func saveConfig(c Config) {
 	_ = os.WriteFile(configPath(), b, 0600)
 }
 
+func ensureEmbeddedScripts() {
+	dir := filepath.Dir(configPath())
+	_ = os.MkdirAll(dir, 0700)
+	loginPath := filepath.Join(dir, "login.ps1")
+	if _, err := os.Stat(loginPath); err != nil { _ = os.WriteFile(loginPath, loginPS1, 0600) }
+	trayPath := filepath.Join(dir, "tray.ps1")
+	if _, err := os.Stat(trayPath); err != nil { _ = os.WriteFile(trayPath, trayPS1, 0600) }
+}
+
 func doLogin(cfg Config) Config {
+	ensureEmbeddedScripts()
 	out, err := exec.Command("powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", filepath.Join(filepath.Dir(configPath()), "login.ps1"), "-DefaultServer", cfg.ServerURL, "-DefaultShop", cfg.ShopID).Output()
 	if err != nil {
 		msg("QR Se Print", "Login window could not open: "+err.Error(), 0x10)
@@ -666,6 +684,7 @@ func ensureAutoStart() {
 }
 
 func launchTray() {
+	ensureEmbeddedScripts()
 	ps := filepath.Join(filepath.Dir(configPath()), "tray.ps1")
 	if _, e := os.Stat(ps); e != nil {
 		return
