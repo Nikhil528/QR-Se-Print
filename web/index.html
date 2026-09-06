@@ -2387,7 +2387,7 @@ html.legal-open,body.legal-open{overflow:hidden}
       <a href="/disclaimer" class="nav-link" data-cfg="navDisclaimer">Declaration</a>
     </nav>
     <div class="head-right">
-      <a data-cfg-html="nav01" href="/admin" class="login-pill">🔑 <span data-cfg="navLogin">Shop Owner Login</span></a>
+      <a data-cfg-html="nav01" href="/dashboard" class="login-pill">🔑 <span data-cfg="navLogin">Shop Owner Login</span></a>
       <button type="button" class="nav-burger" id="navBurger" aria-label="Menu" aria-expanded="false" aria-controls="navDrop" onclick="toggleNav()"><i></i><i></i><i></i></button>
     </div>
   </div>
@@ -2689,7 +2689,7 @@ html.legal-open,body.legal-open{overflow:hidden}
   <!-- ═══ FINAL CTA ═══ -->
   <div class="container final-cta reveal">
     <a data-cfg-html="oth03" href="/register" class="cta-main">🚀 <span data-cfg="ctaMain">Abhi Start Karein</span> <span class="arrow">›</span></a>
-    <a data-cfg-html="oth04" href="/admin" class="cta-sub">🔑 <span data-cfg="ctaSub">Shop Login</span></a>
+    <a data-cfg-html="oth04" href="/dashboard" class="cta-sub">🔑 <span data-cfg="ctaSub">Shop Login</span></a>
   </div>
 
   <!-- ═══ FAQ (SEO content — real search queries) ═══ -->
@@ -3739,7 +3739,7 @@ html.legal-open,body.legal-open{overflow:hidden}
         <a id="ftEmail" href="mailto:qrseprint@gmail.com">📧 qrseprint@gmail.com</a>
         <a id="ftPhone" href="tel:+918404832414">📞 8404832414</a>
         <button data-cfg="ft11" type="button" onclick="openInq()">💼 Business Inquiry</button>
-        <a data-cfg="ft12" href="/admin">🔑 Shop Owner Login</a>
+        <a data-cfg="ft12" href="/dashboard">🔑 Shop Owner Login</a>
       </div>
 
     </div>
@@ -4695,7 +4695,7 @@ function sendInq(via){
         setupGuide: 'a[href="/setup-guide"], #guide',
         faq:        '#faq, a[href="/disclaimer"]',
         register:   'a[href^="/register"]',
-        shopLogin:  'a[href="/admin"]'
+        shopLogin:  'a[href="/dashboard"]'
       };
       var bcfg=d.buttons||{};
       Object.keys(BTN).forEach(function(k){

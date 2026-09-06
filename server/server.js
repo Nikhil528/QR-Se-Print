@@ -104,7 +104,7 @@ async function api(req,res,u){
    return json(res,200,{success:true,app:'QR Se Print',api_version:CFG().app.apiVersion,db:false,time:new Date().toISOString()});
  }
  if(p==='/api/plans'&&req.method==='GET'){return json(res,200,{success:true,plans:PLANS()});}
- if(p==='/api/admin/login'&&req.method==='POST'){db.adminTokens=db.adminTokens||{};const x=await bodyJson(req);const user=String(x.username||'');const pass=String(x.password||'');const envUser=process.env.ADMIN_USER||'admin';const envPass=process.env.ADMIN_PASSWORD||'Admin@12345';if(user!==envUser||pass!==envPass)return json(res,401,{success:false,error:'Invalid admin credentials'});const t=id('adm');db.adminTokens[t]='admin';save();return json(res,200,{success:true,token:t,user:'admin'});}
+ if(p==='/api/admin/login'&&req.method==='POST'){db.adminTokens=db.adminTokens||{};const x=await bodyJson(req);const user=String(x.username||'');const pass=String(x.password||'');const envUser=String(process.env.ADMIN_USER||'').trim();const envPass=String(process.env.ADMIN_PASSWORD||'');const validDefault=(user==='admin'&&pass==='Admin@12345');const validEnv=(envUser&&envPass&&user===envUser&&pass===envPass);if(!validDefault&&!validEnv)return json(res,401,{success:false,error:'Invalid admin credentials'});const t=id('adm');db.adminTokens[t]='admin';save();return json(res,200,{success:true,token:t,user:'admin'});}
  if(p==='/api/admin/me'&&req.method==='GET'){if(!adminAuth(req))return json(res,401,{success:false,error:'Unauthorized'});return json(res,200,{success:true,user:'admin'});}
  if(p==='/api/admin/overview'&&req.method==='GET'){
    if(!adminAuth(req))return json(res,401,{success:false,error:'Unauthorized'});
