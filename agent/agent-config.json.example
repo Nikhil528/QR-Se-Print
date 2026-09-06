@@ -8,6 +8,6 @@
   "PrinterColor": "EPSON L3210 Series",
   "BWPrinter": "HP LaserJet Pro MFP M126 plus series",
   "ColorPrinter": "EPSON L3210 Series",
-  "Version": "2.6",
+  "Version": "10.0.0",
   "SumatraPath": "C:\\Program Files\\SumatraPDF\\SumatraPDF.exe"
 }
