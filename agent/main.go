@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"syscall"
@@ -82,6 +83,7 @@ var uiHTML []byte
 
 // Embed helper scripts so the EXE works even when it is copied/run by itself.
 // The scripts are extracted beside agent-config.json on first launch.
+//
 //go:embed login.ps1
 var loginPS1 []byte
 
@@ -153,12 +155,10 @@ func main() {
 	logLine("PollSeconds: " + fmt.Sprint(cfg.PollSeconds))
 	logLine("========================================")
 	client := &http.Client{Timeout: 30 * time.Second}
-	startLocalUI(&cfg, client)
+	go startNativeDashboard(&cfg, client)
+	startControlServer(&cfg, client)
 	ensureAutoStart()
 	launchTray()
-	// Open the local dashboard automatically after the agent starts.
-	// The tray icon remains available for reopening it later.
-	go openLocalDashboard()
 	heartbeat(client, cfg)
 	reportPrinters(client, cfg)
 	ticker := time.NewTicker(time.Duration(cfg.PollSeconds) * time.Second)
@@ -192,9 +192,13 @@ func ensureEmbeddedScripts() {
 	dir := filepath.Dir(configPath())
 	_ = os.MkdirAll(dir, 0700)
 	loginPath := filepath.Join(dir, "login.ps1")
-	if _, err := os.Stat(loginPath); err != nil { _ = os.WriteFile(loginPath, loginPS1, 0600) }
+	if _, err := os.Stat(loginPath); err != nil {
+		_ = os.WriteFile(loginPath, loginPS1, 0600)
+	}
 	trayPath := filepath.Join(dir, "tray.ps1")
-	if _, err := os.Stat(trayPath); err != nil { _ = os.WriteFile(trayPath, trayPS1, 0600) }
+	if _, err := os.Stat(trayPath); err != nil {
+		_ = os.WriteFile(trayPath, trayPS1, 0600)
+	}
 }
 
 func doLogin(cfg Config) Config {
@@ -584,62 +588,344 @@ func runtimeCounterApproval() bool {
 	return runtimeState.counterApproval
 }
 
-func startLocalUI(cfg *Config, client *http.Client) {
+// native dashboard: intentionally does NOT launch Chrome/Edge.  The dashboard is a
+// real Win32 window owned by the agent EXE.
+var (
+	nativeHwnd                                                        uintptr
+	nativeBW, nativeColor, nativeP4, nativeA3, nativeDup              uintptr
+	nativeStatus, nativeServer, nativeSync, nativeShop, nativeVersion uintptr
+	nativeCfg                                                         *Config
+	nativeClient                                                      *http.Client
+)
+
+var (
+	kernel32             = syscall.NewLazyDLL("kernel32.dll")
+	shell32              = syscall.NewLazyDLL("shell32.dll")
+	gdi32                = syscall.NewLazyDLL("gdi32.dll")
+	procGetModuleHandle  = kernel32.NewProc("GetModuleHandleW")
+	procGetMessage       = user32.NewProc("GetMessageW")
+	procTranslateMessage = user32.NewProc("TranslateMessage")
+	procDispatchMessage  = user32.NewProc("DispatchMessageW")
+	procRegisterClassEx  = user32.NewProc("RegisterClassExW")
+	procCreateWindowEx   = user32.NewProc("CreateWindowExW")
+	procDefWindowProc    = user32.NewProc("DefWindowProcW")
+	procShowWindow       = user32.NewProc("ShowWindow")
+	procUpdateWindow     = user32.NewProc("UpdateWindow")
+	procSetWindowText    = user32.NewProc("SetWindowTextW")
+	procSendMessage      = user32.NewProc("SendMessageW")
+	procMoveWindow       = user32.NewProc("MoveWindow")
+	procDestroyWindow    = user32.NewProc("DestroyWindow")
+	procPostQuitMessage  = user32.NewProc("PostQuitMessage")
+	procGetWindowText    = user32.NewProc("GetWindowTextW")
+	procSetFocus         = user32.NewProc("SetFocus")
+	procMessageBox       = user32.NewProc("MessageBoxW")
+	procShellExecute     = shell32.NewProc("ShellExecuteW")
+)
+
+type wPoint struct{ x, y int32 }
+type wMsg struct {
+	hwnd           uintptr
+	message        uint32
+	wParam, lParam uintptr
+	time           uint32
+	pt             wPoint
+	lPrivate       uint32
+}
+type wWndClassEx struct {
+	cbSize                                   uint32
+	style                                    uint32
+	wndProc                                  uintptr
+	cbClsExtra, cbWndExtra                   int32
+	hInstance, hIcon, hCursor, hbrBackground uintptr
+	menuName, className                      *uint16
+	hIconSm                                  uintptr
+}
+
+const (
+	wmDestroy       = 0x0002
+	wmCommand       = 0x0111
+	wmClose         = 0x0010
+	wmSetFont       = 0x0030
+	cbAddString     = 0x0143
+	cbResetContent  = 0x014B
+	cbGetCurSel     = 0x0147
+	cbSetCurSel     = 0x014E
+	cbGetLBText     = 0x0148
+	bnClicked       = 0
+	wsOverlapped    = 0x00CF0000
+	wsChild         = 0x40000000
+	wsVisible       = 0x10000000
+	wsBorder        = 0x00800000
+	wsTabstop       = 0x00010000
+	ssLeft          = 0x00000000
+	bsPushButton    = 0x00000000
+	cbxDropdownList = 0x0003
+	cwUseDefault    = 0x80000000
+	swShow          = 5
+	swHide          = 0
+	colorWindow     = 5
+	idBW            = 101
+	idColor         = 102
+	idP4            = 103
+	idA3            = 104
+	idDup           = 105
+	idSave          = 201
+	idSync          = 202
+	idRefresh       = 203
+	idPlan          = 204
+	idReconnect     = 205
+	idCounter       = 206
+	idChangeShop    = 207
+	idLogs          = 208
+)
+
+func utf16(s string) *uint16 { p, _ := syscall.UTF16PtrFromString(s); return p }
+func nativeCreate(parent uintptr, class, text string, style uint32, x, y, w, h int32, id int) uintptr {
+	ci := uintptr(0)
+	if parent == 0 {
+		ci = 0
+	}
+	r, _, _ := procCreateWindowEx.Call(0, uintptr(unsafe.Pointer(utf16(class))), uintptr(unsafe.Pointer(utf16(text))), uintptr(style), uintptr(x), uintptr(y), uintptr(w), uintptr(h), parent, uintptr(id), ci, 0)
+	return r
+}
+func nativeLabel(parent uintptr, text string, x, y, w, h int32) uintptr {
+	return nativeCreate(parent, "STATIC", text, wsChild|wsVisible|ssLeft, x, y, w, h, 0)
+}
+func nativeButton(parent uintptr, text string, x, y, w, h int32, id int) uintptr {
+	return nativeCreate(parent, "BUTTON", text, wsChild|wsVisible|wsTabstop|bsPushButton, x, y, w, h, id)
+}
+func nativeCombo(parent uintptr, x, y, w, h int32, id int) uintptr {
+	return nativeCreate(parent, "COMBOBOX", "", wsChild|wsVisible|wsTabstop|wsBorder|cbxDropdownList, x, y, w, h, id)
+}
+func nativeSetText(hwnd uintptr, text string) {
+	procSetWindowText.Call(hwnd, uintptr(unsafe.Pointer(utf16(text))))
+}
+func nativeAddCombo(hwnd uintptr, text string) {
+	procSendMessage.Call(hwnd, cbAddString, 0, uintptr(unsafe.Pointer(utf16(text))))
+}
+func nativeGetCombo(hwnd uintptr) string {
+	idx, _, _ := procSendMessage.Call(hwnd, cbGetCurSel, 0, 0)
+	if int32(idx) == -1 {
+		return ""
+	}
+	buf := make([]uint16, 512)
+	procSendMessage.Call(hwnd, cbGetLBText, idx, uintptr(unsafe.Pointer(&buf[0])))
+	return syscall.UTF16ToString(buf)
+}
+func nativeSetCombo(hwnd uintptr, items []string, selected string) {
+	procSendMessage.Call(hwnd, cbResetContent, 0, 0)
+	nativeAddCombo(hwnd, "— Windows ka default printer —")
+	sel := 0
+	for i, p := range items {
+		nativeAddCombo(hwnd, p)
+		if strings.EqualFold(p, selected) {
+			sel = i + 1
+		}
+	}
+	procSendMessage.Call(hwnd, cbSetCurSel, uintptr(sel), 0)
+}
+func nativePrinterNames() []string {
+	ps := enumeratePrinters()
+	a := make([]string, 0, len(ps))
+	for _, p := range ps {
+		a = append(a, p.Name)
+	}
+	return a
+}
+func nativeSave() {
+	if nativeCfg == nil {
+		return
+	}
+	if v := nativeGetCombo(nativeBW); v != "" && !strings.HasPrefix(v, "—") {
+		nativeCfg.PrinterBW = v
+	}
+	if v := nativeGetCombo(nativeColor); v != "" && !strings.HasPrefix(v, "—") {
+		nativeCfg.PrinterColor = v
+	}
+	if v := nativeGetCombo(nativeP4); v != "" && !strings.HasPrefix(v, "—") {
+		nativeCfg.Printer4x6 = v
+	}
+	if v := nativeGetCombo(nativeA3); v != "" && !strings.HasPrefix(v, "—") {
+		nativeCfg.PrinterA3 = v
+	}
+	if v := nativeGetCombo(nativeDup); v != "" && !strings.HasPrefix(v, "—") {
+		nativeCfg.PrinterDuplex = v
+	}
+	saveConfig(*nativeCfg)
+	msg("QR Se Print", "Printer settings saved.", 0x40)
+}
+func nativeRefresh() {
+	if nativeCfg == nil {
+		return
+	}
+	ps := nativePrinterNames()
+	nativeSetCombo(nativeBW, ps, nativeCfg.PrinterBW)
+	nativeSetCombo(nativeColor, ps, nativeCfg.PrinterColor)
+	nativeSetCombo(nativeP4, ps, nativeCfg.Printer4x6)
+	nativeSetCombo(nativeA3, ps, nativeCfg.PrinterA3)
+	nativeSetCombo(nativeDup, ps, nativeCfg.PrinterDuplex)
+	if nativeClient != nil {
+		reportPrinters(nativeClient, *nativeCfg)
+	}
+}
+func nativeSyncNow() {
+	if nativeCfg != nil && nativeClient != nil {
+		heartbeat(nativeClient, *nativeCfg)
+		reportPrinters(nativeClient, *nativeCfg)
+		nativeUpdateStatus()
+	}
+}
+func nativeReconnect() { nativeSyncNow() }
+func nativeOpenPlan() {
+	procShellExecute.Call(0, uintptr(unsafe.Pointer(utf16("open"))), uintptr(unsafe.Pointer(utf16("https://bvv-djql.onrender.com/"))), 0, 0, swShow)
+}
+func nativeUpdateStatus() {
+	stateMu.RLock()
+	c := runtimeState.connected
+	last := runtimeState.lastSync
+	stateMu.RUnlock()
+	nativeSetText(nativeStatus, map[bool]string{true: "● Print Agent Online", false: "● Print Agent Offline"}[c])
+	nativeSetText(nativeServer, map[bool]string{true: "Yes", false: "No"}[c])
+	nativeSetText(nativeSync, last)
+}
+func nativeWndProc(hwnd uintptr, msgid uint32, wParam, lParam uintptr) uintptr {
+	switch msgid {
+	case wmCommand:
+		id := int(wParam & 0xffff)
+		code := int((wParam >> 16) & 0xffff)
+		if code == bnClicked {
+			switch id {
+			case idSave:
+				nativeSave()
+			case idSync:
+				nativeSyncNow()
+			case idRefresh:
+				nativeRefresh()
+			case idPlan:
+				nativeOpenPlan()
+			case idReconnect:
+				nativeReconnect()
+			case idCounter:
+				stateMu.Lock()
+				runtimeState.counterApproval = !runtimeState.counterApproval
+				v := runtimeState.counterApproval
+				stateMu.Unlock()
+				nativeSetText(nativeButtonText(idCounter), fmt.Sprintf("Counter Approval: %s", map[bool]string{true: "ON", false: "OFF"}[v]))
+			case idChangeShop:
+				if nativeCfg != nil {
+					next := doLogin(*nativeCfg)
+					if next.AgentToken != "" {
+						*nativeCfg = next
+						nativeSetText(nativeShop, next.ShopID)
+						nativeSetText(nativeVersion, "v"+next.Version)
+						nativeSyncNow()
+						nativeRefresh()
+						showDemoUpgradePrompt(*nativeCfg)
+					}
+				}
+			case idLogs:
+				_ = exec.Command("notepad.exe", filepath.Join(filepath.Dir(configPath()), "agent.log")).Start()
+			}
+		}
+	case wmClose:
+		// Closing the dashboard hides it; the agent and tray keep running.
+		procShowWindow.Call(hwnd, swHide)
+		return 0
+	case wmDestroy:
+		procPostQuitMessage.Call(0)
+		return 0
+	}
+	r, _, _ := procDefWindowProc.Call(hwnd, uintptr(msgid), wParam, lParam)
+	return r
+}
+func nativeButtonText(id int) uintptr {
+	if id == idCounter {
+		return nativeCounterButton
+	}
+	return 0
+}
+
+var nativeCounterButton uintptr
+
+func startNativeDashboard(cfg *Config, client *http.Client) {
+	runtime.LockOSThread()
+	nativeCfg = cfg
+	nativeClient = client
+	inst, _, _ := procGetModuleHandle.Call(0)
+	className := utf16("QRSePrintNativeDashboard")
+	wc := wWndClassEx{cbSize: uint32(unsafe.Sizeof(wWndClassEx{})), wndProc: syscall.NewCallback(nativeWndProc), hInstance: inst, hbrBackground: 6, className: className}
+	procRegisterClassEx.Call(uintptr(unsafe.Pointer(&wc)))
+	hwnd := nativeCreate(0, "QRSePrintNativeDashboard", "QR Se Print — Print Agent", wsOverlapped, 0, 0, 900, 760, 0)
+	nativeHwnd = hwnd
+	nativeLabel(hwnd, "▦", 390, 18, 120, 45)
+	nativeLabel(hwnd, "QR Se Print", 350, 58, 200, 38)
+	nativeStatus = nativeLabel(hwnd, "● Connecting...", 350, 98, 220, 28)
+	nativeLabel(hwnd, "Shop Name", 55, 155, 180, 28)
+	nativeShop = nativeLabel(hwnd, cfg.ShopID, 520, 155, 300, 28)
+	nativeLabel(hwnd, "Shop ID", 55, 195, 180, 28)
+	nativeLabel(hwnd, cfg.ShopID, 520, 195, 300, 28)
+	nativeLabel(hwnd, "Version", 55, 235, 180, 28)
+	nativeVersion = nativeLabel(hwnd, "v"+cfg.Version, 520, 235, 300, 28)
+	nativeLabel(hwnd, "Connected to Server", 55, 275, 220, 28)
+	nativeServer = nativeLabel(hwnd, "...", 730, 275, 90, 28)
+	nativeLabel(hwnd, "Last Sync", 55, 315, 180, 28)
+	nativeSync = nativeLabel(hwnd, "—", 730, 315, 90, 28)
+	nativeLabel(hwnd, "Black & White Printer", 55, 370, 220, 25)
+	nativeBW = nativeCombo(hwnd, 55, 397, 360, 34, idBW)
+	nativeLabel(hwnd, "Color Printer", 465, 370, 220, 25)
+	nativeColor = nativeCombo(hwnd, 465, 397, 360, 34, idColor)
+	nativeLabel(hwnd, "4×6 Photo Printer", 55, 447, 220, 25)
+	nativeP4 = nativeCombo(hwnd, 55, 474, 360, 34, idP4)
+	nativeLabel(hwnd, "A3 Printer", 465, 447, 220, 25)
+	nativeA3 = nativeCombo(hwnd, 465, 474, 360, 34, idA3)
+	nativeLabel(hwnd, "Duplex Printer", 55, 524, 220, 25)
+	nativeDup = nativeCombo(hwnd, 55, 551, 360, 34, idDup)
+	nativeButton(hwnd, "Save Printer", 55, 615, 180, 48, idSave)
+	nativeButton(hwnd, "Sync Now", 255, 615, 180, 48, idSync)
+	nativeButton(hwnd, "Refresh Printer List", 455, 615, 180, 48, idRefresh)
+	nativeButton(hwnd, "Plan / Upgrade", 655, 615, 170, 48, idPlan)
+	nativeCounterButton = nativeButton(hwnd, "Counter Approval: ON", 55, 675, 180, 38, idCounter)
+	nativeButton(hwnd, "Reconnect", 255, 675, 180, 38, idReconnect)
+	nativeButton(hwnd, "Change Shop ID", 455, 675, 180, 38, idChangeShop)
+	nativeButton(hwnd, "View Logs", 655, 675, 170, 38, idLogs)
+	nativeRefresh()
+	procShowWindow.Call(hwnd, swShow)
+	procUpdateWindow.Call(hwnd)
+	go func() {
+		for {
+			time.Sleep(2 * time.Second)
+			if nativeHwnd != 0 {
+				nativeUpdateStatus()
+			}
+		}
+	}()
+	var m wMsg
+	for {
+		r, _, _ := procGetMessage.Call(uintptr(unsafe.Pointer(&m)), 0, 0, 0)
+		if int32(r) <= 0 {
+			break
+		}
+		procTranslateMessage.Call(uintptr(unsafe.Pointer(&m)))
+		procDispatchMessage.Call(uintptr(unsafe.Pointer(&m)))
+	}
+}
+
+func startControlServer(cfg *Config, client *http.Client) {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write(uiHTML)
-	})
-	mux.HandleFunc("/state", func(w http.ResponseWriter, r *http.Request) {
-		stateMu.RLock()
-		rs := runtimeState
-		jobs := append([]map[string]any(nil), rs.jobs...)
-		stateMu.RUnlock()
-		ps := enumeratePrinters()
-		names := make([]string, 0, len(ps))
-		for _, p := range ps {
-			names = append(names, p.Name)
+	mux.HandleFunc("/open", func(w http.ResponseWriter, r *http.Request) {
+		if nativeHwnd != 0 {
+			procShowWindow.Call(nativeHwnd, swShow)
 		}
-		stateMu.RLock()
-		connected := runtimeState.connected
-		last := runtimeState.lastSync
-		stateMu.RUnlock()
-		stateMu.RLock()
-		ca := runtimeState.counterApproval
-		stateMu.RUnlock()
-		out := map[string]any{"connected": connected, "lastSync": last, "printers": names, "config": cfg, "jobs": jobs, "counterApproval": ca, "shopName": cfg.ShopID, "demo": strings.HasPrefix(strings.ToUpper(cfg.ShopID), "DEMO_"), "demoMessage": "Aap DEMO Shop ID use kar rahe hain. Paid plan ke liye upgrade karein."}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(out)
+		_, _ = w.Write([]byte(`{"ok":true}`))
 	})
-	mux.HandleFunc("/save", func(w http.ResponseWriter, r *http.Request) {
-		var x map[string]string
-		if json.NewDecoder(r.Body).Decode(&x) == nil {
-			if v := strings.TrimSpace(x["bw"]); v != "" {
-				cfg.PrinterBW = v
-			}
-			if v := strings.TrimSpace(x["color"]); v != "" {
-				cfg.PrinterColor = v
-			}
-			if v := strings.TrimSpace(x["p4"]); v != "" {
-				cfg.Printer4x6 = v
-			}
-			if v := strings.TrimSpace(x["a3"]); v != "" {
-				cfg.PrinterA3 = v
-			}
-			if v := strings.TrimSpace(x["dup"]); v != "" {
-				cfg.PrinterDuplex = v
-			}
-			saveConfig(*cfg)
-		}
+	mux.HandleFunc("/reconnect", func(w http.ResponseWriter, r *http.Request) {
+		heartbeat(client, *cfg)
+		reportPrinters(client, *cfg)
 		_, _ = w.Write([]byte(`{"ok":true}`))
 	})
 	mux.HandleFunc("/sync", func(w http.ResponseWriter, r *http.Request) {
 		heartbeat(client, *cfg)
 		reportPrinters(client, *cfg)
-		_, _ = w.Write([]byte(`{"ok":true}`))
-	})
-	mux.HandleFunc("/reconnect", func(w http.ResponseWriter, r *http.Request) {
-		heartbeat(client, *cfg)
 		_, _ = w.Write([]byte(`{"ok":true}`))
 	})
 	mux.HandleFunc("/counter", func(w http.ResponseWriter, r *http.Request) {
@@ -653,16 +939,8 @@ func startLocalUI(cfg *Config, client *http.Client) {
 		logLine(fmt.Sprintf("Counter approval: %v", x.Enabled))
 		_, _ = w.Write([]byte(`{"ok":true}`))
 	})
-	mux.HandleFunc("/plan", func(w http.ResponseWriter, r *http.Request) {
-		_ = exec.Command("cmd", "/c", "start", "", "https://bvv-djql.onrender.com/").Start()
-		_, _ = w.Write([]byte(`{"ok":true}`))
-	})
 	mux.HandleFunc("/logs", func(w http.ResponseWriter, r *http.Request) {
 		_ = exec.Command("notepad.exe", filepath.Join(filepath.Dir(configPath()), "agent.log")).Start()
-		_, _ = w.Write([]byte(`{"ok":true}`))
-	})
-	mux.HandleFunc("/open", func(w http.ResponseWriter, r *http.Request) {
-		_ = exec.Command("cmd", "/c", "start", "", "http://127.0.0.1:17845/").Start()
 		_, _ = w.Write([]byte(`{"ok":true}`))
 	})
 	mux.HandleFunc("/change-shop", func(w http.ResponseWriter, r *http.Request) {
@@ -671,26 +949,20 @@ func startLocalUI(cfg *Config, client *http.Client) {
 			*cfg = next
 			heartbeat(client, *cfg)
 			reportPrinters(client, *cfg)
-			showDemoUpgradePrompt(*cfg)
+			if nativeShop != 0 {
+				nativeSetText(nativeShop, next.ShopID)
+			}
+			if nativeVersion != 0 {
+				nativeSetText(nativeVersion, "v"+next.Version)
+			}
 		}
 		_, _ = w.Write([]byte(`{"ok":true}`))
 	})
-	go func() { _ = http.ListenAndServe("127.0.0.1:17845", mux) }()
-}
-
-func openLocalDashboard() {
-	// Give the local HTTP listener a moment to bind, then open the dashboard.
-	for i := 0; i < 10; i++ {
-		resp, err := http.Get("http://127.0.0.1:17845/")
-		if err == nil {
-			_ = resp.Body.Close()
-			_ = exec.Command("rundll32.exe", "url.dll,FileProtocolHandler", "http://127.0.0.1:17845/").Start()
-			logLine("Dashboard opened automatically")
-			return
+	go func() {
+		if err := http.ListenAndServe("127.0.0.1:17845", mux); err != nil {
+			logLine("Control server stopped: " + err.Error())
 		}
-		time.Sleep(300 * time.Millisecond)
-	}
-	logLine("WARN: Dashboard could not be opened automatically; use tray Settings")
+	}()
 }
 
 func ensureAutoStart() {

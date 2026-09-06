@@ -9,15 +9,15 @@ Add-Item 'Shop: loading...' {} | Out-Null
 Add-Item 'Printer: loading...' {} | Out-Null
 $menu.Items.Add('-')|Out-Null
 Add-Item '⚡ Change Demo ID to Paid Shop' {Start-Process 'https://bvv-djql.onrender.com/'}|Out-Null
-Add-Item '⚙ Settings' {Start-Process "$base/"}|Out-Null
+Add-Item '⚙ Settings' {try{Invoke-WebRequest "$base/open" -UseBasicParsing|Out-Null}catch{}}|Out-Null
 Add-Item '↻ Reconnect to Server' {try{Invoke-WebRequest "$base/reconnect" -Method POST -UseBasicParsing|Out-Null}catch{}}|Out-Null
 $counter=$false
 $counterItem=Add-Item '🔔 Counter Approval: OFF' {}
 $counterItem.Add_Click({$script:counter=-not $script:counter;$counterItem.Text=if($script:counter){'🔔 Counter Approval: ON'}else{'🔔 Counter Approval: OFF'};try{Invoke-WebRequest "$base/counter" -Method POST -ContentType 'application/json' -Body (@{enabled=$script:counter}|ConvertTo-Json) -UseBasicParsing|Out-Null}catch{}})
 Add-Item '▤ View Logs' {try{Invoke-WebRequest "$base/logs" -UseBasicParsing|Out-Null}catch{}}|Out-Null
 Add-Item '♙ Contact Admin' {Start-Process 'https://bvv-djql.onrender.com/'}|Out-Null
-Add-Item '↑ Check for Update' {Start-Process "$base/"}|Out-Null
+Add-Item '↑ Check for Update' {try{Invoke-WebRequest "$base/open" -UseBasicParsing|Out-Null}catch{}}|Out-Null
 Add-Item '▣ Change Shop ID' {try{Invoke-WebRequest "$base/change-shop" -Method POST -UseBasicParsing|Out-Null}catch{}}|Out-Null
 $menu.Items.Add('-')|Out-Null
 Add-Item '✕ Exit' {$ni.Visible=$false;[System.Windows.Forms.Application]::Exit()}|Out-Null
-$ni.ContextMenuStrip=$menu;$ni.Add_DoubleClick({Start-Process "$base/"});[Windows.Forms.Application]::Run()
+$ni.ContextMenuStrip=$menu;$ni.Add_DoubleClick({try{Invoke-WebRequest "$base/open" -UseBasicParsing|Out-Null}catch{}});[Windows.Forms.Application]::Run()
